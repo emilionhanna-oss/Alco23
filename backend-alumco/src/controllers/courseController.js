@@ -151,7 +151,7 @@ function sanitizeModulos(raw, existing = []) {
       const rawContenido = m.contenido !== undefined ? m.contenido : ex.contenido;
       let contenido;
       if      (tipo === 'practica_presencial') contenido = PRACTICA_PRESENCIAL_MESSAGE;
-      else if (tipo === 'video')   { const s = asTrimmedString(rawContenido) ?? ''; contenido = /^https?:\/\//i.test(s) ? s : ''; }
+      else if (tipo === 'video')   { const s = asTrimmedString(rawContenido) ?? ''; contenido = (/^https?:\/\//i.test(s) || s.startsWith('/')) ? s : ''; }
       else if (tipo === 'lectura') contenido = sanitizeLecturaContenido(rawContenido);
       else if (tipo === 'quiz')    contenido = sanitizeQuizContenido(rawContenido);
       else                         contenido = asTrimmedString(rawContenido) ?? '';
@@ -422,9 +422,19 @@ const asignarAlumnos = async (req, res) => {
     if (!Array.isArray(alumnosInscritos))
       return res.status(400).json({ mensaje: 'alumnosInscritos debe ser un array' });
 
-    const cursoResult = await db.query('SELECT id FROM cursos WHERE id = $1', [id]);
+    const cursoResult = await db.query('SELECT * FROM cursos WHERE id = $1', [id]);
     if (cursoResult.rows.length === 0)
       return res.status(404).json({ mensaje: `Curso con id ${id} no encontrado` });
+
+    const roles      = normalizeRoles(req.user?.rol);
+    const isAdmin    = roles.includes('admin');
+    const isProfesor = roles.includes('profesor');
+
+    if (!isAdmin) {
+      if (!isProfesor || String(cursoResult.rows[0].instructor_id) !== String(req.user?.id)) {
+        return res.status(403).json({ mensaje: 'No autorizado' });
+      }
+    }
 
     let normalized = [];
     if (alumnosInscritos.length > 0) {
@@ -511,6 +521,21 @@ const solicitarPractica = async (req, res) => {
 const inscripcionMasiva = async (req, res) => {
   try {
     const { id: cursoId } = req.params;
+    
+    // Verificar propiedad
+    const cursoResult = await db.query('SELECT * FROM cursos WHERE id = $1', [cursoId]);
+    if (cursoResult.rows.length === 0) return res.status(404).json({ error: 'Curso no encontrado' });
+
+    const roles      = normalizeRoles(req.user?.rol);
+    const isAdmin    = roles.includes('admin');
+    const isProfesor = roles.includes('profesor');
+
+    if (!isAdmin) {
+      if (!isProfesor || String(cursoResult.rows[0].instructor_id) !== String(req.user?.id)) {
+        return res.status(403).json({ error: 'No autorizado para este curso' });
+      }
+    }
+
     if (!req.file) {
       return res.status(400).json({ success: false, error: 'No se subió ningún archivo' });
     }
