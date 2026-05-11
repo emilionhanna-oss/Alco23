@@ -23,7 +23,16 @@ const corsOrigin = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
   : true;
 
-app.use(cors({ origin: corsOrigin }));
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true);
+    const isAllowed = corsOrigin === true ||
+      corsOrigin.some(o => o === origin) ||
+      origin.endsWith('.vercel.app');
+    callback(null, isAllowed ? origin : false);
+  }
+}));
+
 app.use(express.json({ limit: '1mb' }));
 
 // Archivos estáticos (imágenes de cursos, etc.)
