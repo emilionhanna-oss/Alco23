@@ -116,19 +116,38 @@ export const QuizResponder: React.FC<QuizResponderProps> = ({ modulo_id, onVolve
     return <BloqueoBloqueOTemporal bloqueado_hasta={bloqueado_hasta} onVolver={onVolver} />;
   }
 
-  // ERROR
+  // ERROR O SIN INTENTOS
   if (etapa === 'error' || !quiz) {
+    const esSinIntentos = error?.includes('intentos disponibles') || error?.includes('bloqueado');
+
     return (
-      <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
-        <div className="flex items-start gap-3">
-          <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
-          <div className="flex-1">
-            <h3 className="font-bold text-red-900 mb-2">Error al cargar el quiz</h3>
-            <p className="text-red-800 mb-4">{error || 'Ocurrió un error desconocido'}</p>
-            <Button onClick={onVolver} variant="outline">
-              Volver al curso
-            </Button>
+      <div className="p-8 text-center space-y-6 bg-white rounded-2xl border border-gray-200 shadow-sm">
+        <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto ${esSinIntentos ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
+          {esSinIntentos ? <Clock className="w-10 h-10" /> : <AlertCircle className="w-10 h-10" />}
+        </div>
+        
+        <div className="space-y-2">
+          <h3 className="text-2xl font-bold text-gray-900">
+            {esSinIntentos ? 'Actividad No Disponible' : 'Error al cargar el quiz'}
+          </h3>
+          <p className="text-gray-600 max-w-md mx-auto">
+            {error || 'No pudimos cargar el contenido en este momento. Por favor, intenta de nuevo.'}
+          </p>
+        </div>
+
+        {esSinIntentos && (
+          <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-sm text-amber-800 text-left">
+            <strong>¿Por qué veo esto?</strong>
+            <p className="mt-1">
+              Para asegurar el aprendizaje, el sistema limita los intentos. Si has fallado 2 veces, se activa un periodo de repaso de 14 días.
+            </p>
           </div>
+        )}
+
+        <div className="pt-4">
+          <Button onClick={onVolver} variant={esSinIntentos ? 'default' : 'outline'} className={esSinIntentos ? 'bg-[#1a2840] hover:bg-[#2d4263] px-8' : ''}>
+            Volver al curso
+          </Button>
         </div>
       </div>
     );

@@ -23,6 +23,8 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+const { uploadCloudinary } = require('../config/cloudinary');
+
 router.get('/', requireAuth, courseController.listarCursos);
 router.get('/:id', requireAuth, courseController.obtenerCursoPorId);
 
@@ -48,15 +50,18 @@ router.delete('/:id', requireAuth, requireAdmin, courseController.eliminarCurso)
 router.put('/:id/alumnos', requireAuth, requireProfesor, courseController.asignarAlumnos);
 
 // Admin/Profesor: inscripción masiva desde Excel
-router.post('/:id/inscripcion-masiva', requireAuth, requireProfesor, upload.single('file'), courseController.inscripcionMasiva);
+// Nota: Para la subida de Excel seguimos usando multer local temporalmente si es necesario, 
+// o podemos usar Cloudinary si el controlador lo soporta. Dejamos el local para Excel por simplicidad.
+const uploadLocal = multer({ storage: multer.memoryStorage() }); 
+router.post('/:id/inscripcion-masiva', requireAuth, requireProfesor, uploadLocal.single('file'), courseController.inscripcionMasiva);
 
-// Admin/Profesor: subir material de módulo
-router.post('/upload-material', requireAuth, requireProfesor, upload.single('file'), (req, res) => {
+// Admin/Profesor: subir material de módulo (AHORA A CLOUDINARY)
+router.post('/upload-material', requireAuth, requireProfesor, uploadCloudinary.single('file'), (req, res) => {
   if (!req.file) {
-    return res.status(400).json({ success: false, error: 'No se subió ningún archivo' });
+    return res.status(400).json({ success: false, error: 'No se pudo subir el archivo a la nube' });
   }
-  const fileUrl = `/static/uploads/${req.file.filename}`;
-  res.json({ success: true, url: fileUrl });
+  // req.file.path contiene la URL de Cloudinary (https://res.cloudinary.com/...)
+  res.json({ success: true, url: req.file.path });
 });
 
 module.exports = router;

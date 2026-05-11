@@ -173,10 +173,12 @@ const obtenerQuizModulo = async (req, res) => {
         if (ultimo_intento.intento_numero < 2) {
           intento_numero = 2;
         } else {
-          // Ya usó ambos intentos
+          // Ya usó ambos intentos. Buscamos la fecha de desbloqueo para enviarla al front
+          const fechaDesbloq = ultimo_intento.fecha_desbloq_temporal;
           return res.status(403).json({
             error: 'Sin intentos disponibles',
-            mensaje: 'Ya has usado tus 2 intentos. Estás bloqueado por 14 días.',
+            bloqueado_hasta: fechaDesbloq ? new Date(fechaDesbloq).toISOString() : null,
+            mensaje: 'Ya has usado tus 2 intentos. Estás bloqueado temporalmente para repaso.',
           });
         }
       } else if (ultimo_intento.estado === 'en_progreso') {
