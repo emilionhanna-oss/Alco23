@@ -455,17 +455,23 @@ export default function CursoDetalle() {
                         ) : null}
                       </CardDescription>
                     </div>
-                    {modulo.materialDescargable ? (
-                      <a
-                        href={modulo.materialDescargable.startsWith('/') ? buildApiUrl(modulo.materialDescargable) : modulo.materialDescargable}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm text-blue-600 hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Descargar material
-                      </a>
-                    ) : null}
+                      {modulo.materialDescargable ? (
+                        <a
+                          href={(() => {
+                            const link = modulo.materialDescargable || '';
+                            if (link.startsWith('http')) return link;
+                            if (link.startsWith('/')) return buildApiUrl(link);
+                            return buildApiUrl('/' + link);
+                          })()}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Download className="w-4 h-4" />
+                          Descargar material
+                        </a>
+                      ) : null}
                   </div>
                 </CardHeader>
 

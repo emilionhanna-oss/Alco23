@@ -60,8 +60,16 @@ router.post('/upload-material', requireAuth, requireProfesor, uploadCloudinary.s
   if (!req.file) {
     return res.status(400).json({ success: false, error: 'No se pudo subir el archivo a la nube' });
   }
-  // req.file.path contiene la URL de Cloudinary (https://res.cloudinary.com/...)
-  res.json({ success: true, url: req.file.path });
+  
+  // Intentar obtener la URL de varias formas por si acaso
+  const fileUrl = req.file.path || req.file.secure_url || req.file.url;
+  
+  if (!fileUrl) {
+    return res.status(500).json({ success: false, error: 'El archivo se subió pero no se obtuvo una URL' });
+  }
+
+  console.log('Archivo subido a Cloudinary:', fileUrl);
+  res.json({ success: true, url: fileUrl });
 });
 
 module.exports = router;
