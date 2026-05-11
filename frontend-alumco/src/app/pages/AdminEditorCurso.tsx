@@ -193,6 +193,7 @@ export default function AdminEditorCurso() {
                 tituloModulo: m.tituloModulo || 'Módulo sin título',
                 tipo,
                 contenido: { instrucciones: raw } satisfies LecturaContenido,
+                materialDescargable: m.materialDescargable,
               };
             }
 
@@ -204,6 +205,7 @@ export default function AdminEditorCurso() {
                   archivoNombre: typeof raw.archivoNombre === 'string' ? raw.archivoNombre : undefined,
                   instrucciones: typeof raw.instrucciones === 'string' ? raw.instrucciones : undefined,
                 } satisfies LecturaContenido,
+                materialDescargable: m.materialDescargable,
               };
             }
 
@@ -235,6 +237,7 @@ export default function AdminEditorCurso() {
                     tituloModulo: m.tituloModulo || 'Módulo sin título',
                     tipo,
                     contenido: parsed as QuizPregunta[],
+                    materialDescargable: m.materialDescargable,
                   };
                 }
               } catch {
@@ -246,6 +249,7 @@ export default function AdminEditorCurso() {
               tituloModulo: m.tituloModulo || 'Módulo sin título',
               tipo,
               contenido: [] as QuizPregunta[],
+              materialDescargable: m.materialDescargable,
             };
           }
 
@@ -254,6 +258,7 @@ export default function AdminEditorCurso() {
             tituloModulo: m.tituloModulo || 'Módulo sin título',
             tipo,
             contenido: typeof (m as any).contenido === 'string' ? (m as any).contenido : '',
+            materialDescargable: m.materialDescargable,
           };
         });
 

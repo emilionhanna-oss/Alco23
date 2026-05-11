@@ -155,7 +155,7 @@ function sanitizeModulos(raw, existing = []) {
       else if (tipo === 'lectura') contenido = sanitizeLecturaContenido(rawContenido);
       else if (tipo === 'quiz')    contenido = sanitizeQuizContenido(rawContenido);
       else                         contenido = asTrimmedString(rawContenido) ?? '';
-      const material_url = asTrimmedString(m.materialDescargable) || asTrimmedString(ex.materialDescargable) || null;
+      const material_url = asTrimmedString(m.materialDescargable) || asTrimmedString(m.material_url) || asTrimmedString(ex.materialDescargable) || asTrimmedString(ex.material_url) || null;
       return { ...ex, tituloModulo, tipo, contenido, material_url };
     });
 }
