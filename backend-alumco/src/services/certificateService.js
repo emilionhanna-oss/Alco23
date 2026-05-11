@@ -155,7 +155,7 @@ async function generateCertificate(curso_id, usuario_id) {
       doc.moveTo(120, bottomY + 62).lineTo(320, bottomY + 62).strokeColor('#1a2840').lineWidth(1).stroke();
 
       // Generar y estampar código QR (Derecha)
-      const frontendUrl = process.env.FRONTEND_URL || (process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',')[0] : 'http://localhost:5173');
+      const frontendUrl = process.env.FRONTEND_URL || 'https://alumcoong2.vercel.app';
       const verificationUrl = `${frontendUrl}/verificar-certificado/${hash}`;
       
       const qrDataUrl = await QRCode.toDataURL(verificationUrl, { margin: 1, color: { dark: '#1a2840' } });
