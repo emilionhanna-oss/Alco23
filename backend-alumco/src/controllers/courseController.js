@@ -541,7 +541,7 @@ const inscripcionMasiva = async (req, res) => {
     }
 
     // FIX: multer usa memoryStorage (buffer), no file.path
-    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+    const workbook = xlsx.readFile(req.file.path);
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     const data = xlsx.utils.sheet_to_json(worksheet);

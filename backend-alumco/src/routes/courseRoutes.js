@@ -23,8 +23,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-const { uploadCloudinary } = require('../config/cloudinary');
-
 router.get('/', requireAuth, courseController.listarCursos);
 router.get('/:id', requireAuth, courseController.obtenerCursoPorId);
 
@@ -50,25 +48,14 @@ router.delete('/:id', requireAuth, requireAdmin, courseController.eliminarCurso)
 router.put('/:id/alumnos', requireAuth, requireProfesor, courseController.asignarAlumnos);
 
 // Admin/Profesor: inscripción masiva desde Excel
-// Nota: Para la subida de Excel seguimos usando multer local temporalmente si es necesario, 
-// o podemos usar Cloudinary si el controlador lo soporta. Dejamos el local para Excel por simplicidad.
-const uploadLocal = multer({ storage: multer.memoryStorage() }); 
-router.post('/:id/inscripcion-masiva', requireAuth, requireProfesor, uploadLocal.single('file'), courseController.inscripcionMasiva);
+router.post('/:id/inscripcion-masiva', requireAuth, requireProfesor, upload.single('file'), courseController.inscripcionMasiva);
 
-// Admin/Profesor: subir material de módulo (AHORA A CLOUDINARY)
-router.post('/upload-material', requireAuth, requireProfesor, uploadCloudinary.single('file'), (req, res) => {
+// Admin/Profesor: subir material de módulo
+router.post('/upload-material', requireAuth, requireProfesor, upload.single('file'), (req, res) => {
   if (!req.file) {
-    return res.status(400).json({ success: false, error: 'No se pudo subir el archivo a la nube' });
+    return res.status(400).json({ success: false, error: 'No se subió ningún archivo' });
   }
-  
-  // Intentar obtener la URL de varias formas por si acaso
-  const fileUrl = req.file.path || req.file.secure_url || req.file.url;
-  
-  if (!fileUrl) {
-    return res.status(500).json({ success: false, error: 'El archivo se subió pero no se obtuvo una URL' });
-  }
-
-  console.log('Archivo subido a Cloudinary:', fileUrl);
+  const fileUrl = `/static/uploads/${req.file.filename}`;
   res.json({ success: true, url: fileUrl });
 });
 

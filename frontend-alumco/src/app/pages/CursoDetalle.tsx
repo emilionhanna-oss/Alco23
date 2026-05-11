@@ -455,23 +455,26 @@ export default function CursoDetalle() {
                         ) : null}
                       </CardDescription>
                     </div>
-                      {modulo.materialDescargable ? (
-                        <a
-                          href={(() => {
-                            const link = modulo.materialDescargable || '';
-                            if (link.startsWith('http')) return link;
-                            if (link.startsWith('/')) return buildApiUrl(link);
-                            return buildApiUrl('/' + link);
-                          })()}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Download className="w-4 h-4" />
-                          Descargar material
-                        </a>
-                      ) : null}
+                        <div className="mt-2 space-y-2">
+                          <a
+                            href={(() => {
+                              const link = modulo.materialDescargable || '';
+                              if (link.startsWith('http')) return link;
+                              if (link.startsWith('/')) return buildApiUrl(link);
+                              return buildApiUrl('/' + link);
+                            })()}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors w-fit"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Download className="w-4 h-4" />
+                            Descargar material
+                          </a>
+                          <p className="text-[10px] text-amber-600 font-medium italic leading-tight">
+                            Nota: Al ser un servidor de demostración (Plan Gratis), el material subido se limpia periódicamente al reiniciarse el sistema.
+                          </p>
+                        </div>
                   </div>
                 </CardHeader>
 
@@ -497,24 +500,31 @@ export default function CursoDetalle() {
                       const isLocalVideo = src.includes('/static/uploads/') || src.endsWith('.mp4');
 
                       return (
-                        <div className="w-full max-w-4xl mx-auto aspect-video rounded-xl overflow-hidden bg-black shadow-2xl border border-gray-800">
-                          {isLocalVideo ? (
-                            <video 
-                              src={src.startsWith('http') ? src : buildApiUrl(src)} 
-                              controls 
-                              className="w-full h-full"
-                              controlsList="nodownload"
-                            >
-                              Tu navegador no soporta el elemento de video.
-                            </video>
-                          ) : (
-                            <iframe
-                              title={modulo.tituloModulo}
-                              src={src}
-                              className="w-full h-full border-0"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                            />
+                        <div className="space-y-2">
+                          <div className="w-full max-w-4xl mx-auto aspect-video rounded-xl overflow-hidden bg-black shadow-2xl border border-gray-800">
+                            {isLocalVideo ? (
+                              <video 
+                                src={src.startsWith('http') ? src : buildApiUrl(src)} 
+                                controls 
+                                className="w-full h-full"
+                                controlsList="nodownload"
+                              >
+                                Tu navegador no soporta el elemento de video.
+                              </video>
+                            ) : (
+                              <iframe
+                                title={modulo.tituloModulo}
+                                src={src}
+                                className="w-full h-full border-0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                              />
+                            )}
+                          </div>
+                          {isLocalVideo && (
+                            <p className="text-[10px] text-amber-600 font-medium italic leading-tight text-center">
+                              Nota: Los videos subidos directamente se limpian al reiniciarse el servidor por ser un plan gratuito.
+                            </p>
                           )}
                         </div>
                       );
