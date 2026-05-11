@@ -12,6 +12,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { transformYoutubeUrl } from '../utils/moduleUtils';
 
 type LoadState =
   | { status: 'loading' }
@@ -471,7 +472,7 @@ export default function CursoDetalle() {
                 <CardContent>
                   {modulo.tipo === 'video' ? (
                     (() => {
-                      const src = typeof modulo.contenido === 'string' ? modulo.contenido.trim() : '';
+                      let src = typeof modulo.contenido === 'string' ? modulo.contenido.trim() : '';
 
                       if (!src) {
                         return (
@@ -482,24 +483,33 @@ export default function CursoDetalle() {
                         );
                       }
 
-                      if (!/^https?:\/\//i.test(src)) {
-                        return (
-                          <div className="rounded-lg border bg-gray-50 p-4">
-                            <p className="text-sm font-medium text-gray-900">Video</p>
-                            <p className="text-sm text-gray-700 mt-2">El link de video no es válido.</p>
-                          </div>
-                        );
+                      // Transformar defensivamente si es YouTube
+                      if ((src.includes('youtube.com') || src.includes('youtu.be')) && !src.includes('embed/')) {
+                        src = transformYoutubeUrl(src);
                       }
 
+                      const isLocalVideo = src.includes('/static/uploads/') || src.endsWith('.mp4');
+
                       return (
-                        <div className="w-full aspect-video rounded overflow-hidden bg-black">
-                          <iframe
-                            title={modulo.tituloModulo}
-                            src={src}
-                            className="w-full h-full"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
+                        <div className="w-full max-w-4xl mx-auto aspect-video rounded-xl overflow-hidden bg-black shadow-2xl border border-gray-800">
+                          {isLocalVideo ? (
+                            <video 
+                              src={src.startsWith('http') ? src : buildApiUrl(src)} 
+                              controls 
+                              className="w-full h-full"
+                              controlsList="nodownload"
+                            >
+                              Tu navegador no soporta el elemento de video.
+                            </video>
+                          ) : (
+                            <iframe
+                              title={modulo.tituloModulo}
+                              src={src}
+                              className="w-full h-full border-0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          )}
                         </div>
                       );
                     })()
@@ -557,6 +567,14 @@ export default function CursoDetalle() {
                                     title="Visor de Material"
                                   />
                                 </div>
+                              ) : (modulo.materialDescargable.toLowerCase().endsWith('.mp4') || modulo.materialDescargable.toLowerCase().endsWith('.webm')) ? (
+                                <div className="w-full max-w-4xl mx-auto aspect-video rounded-xl overflow-hidden bg-black shadow-lg">
+                                  <video 
+                                    src={buildApiUrl(modulo.materialDescargable)} 
+                                    controls 
+                                    className="w-full h-full"
+                                  />
+                                </div>
                               ) : (
                                 <div className="flex items-center p-4 rounded-xl border-2 border-blue-100 bg-blue-50/50 hover:bg-blue-50 transition-colors">
                                   <div className="p-3 bg-blue-100 rounded-xl mr-4 text-blue-600 shadow-sm">
@@ -566,7 +584,7 @@ export default function CursoDetalle() {
                                     <p className="text-sm font-bold text-blue-900">
                                       {lectura.archivoNombre || 'Material de apoyo'}
                                     </p>
-                                    <p className="text-xs text-blue-700">Recurso descargable (Excel, PPT, Imagen)</p>
+                                    <p className="text-xs text-blue-700">Recurso descargable (TXT, Excel, PPT, ZIP, etc.)</p>
                                   </div>
                                   <Button 
                                     variant="default" 

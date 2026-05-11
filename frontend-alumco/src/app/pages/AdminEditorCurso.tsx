@@ -38,7 +38,7 @@ import {
   type ModuloContenido,
   type EditModulo,
 } from '../types/moduleTypes';
-import { isPlainObject, coerceContenidoForTipo } from '../utils/moduleUtils';
+import { isPlainObject, coerceContenidoForTipo, transformYoutubeUrl } from '../utils/moduleUtils';
 
 export default function AdminEditorCurso() {
   const { user } = useAuth();
@@ -955,25 +955,76 @@ export default function AdminEditorCurso() {
                           <div className="text-xs font-medium text-gray-700 mb-1">Contenido</div>
 
                           {selectedModule.tipo === 'video' ? (
-                            <Input
-                              value={typeof selectedModule.contenido === 'string' ? selectedModule.contenido : ''}
-                              onChange={(e) => updateModule(selectedIndex, { contenido: e.target.value })}
-                              placeholder="Pega aquí el link/embed del video"
-                              disabled={isSaving}
-                            />
+                            <div className="space-y-3">
+                              <div className="text-[11px] text-blue-600 bg-blue-50 p-2 rounded border border-blue-100 font-medium">
+                                💡 Puedes pegar un link de YouTube (ej: youtube.com/watch?v=...) o subir un archivo MP4.
+                              </div>
+                              
+                              <div className="flex gap-2">
+                                <div className="flex-1">
+                                  <Input
+                                    value={typeof selectedModule.contenido === 'string' ? selectedModule.contenido : ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const transformed = (val.includes('youtube.com') || val.includes('youtu.be')) 
+                                        ? transformYoutubeUrl(val) 
+                                        : val;
+                                      updateModule(selectedIndex, { contenido: transformed });
+                                    }}
+                                    placeholder="URL de YouTube o link de video"
+                                    disabled={isSaving || isUploadingMaterial}
+                                    className="h-9 text-sm"
+                                  />
+                                </div>
+                                <div className="relative">
+                                  <input
+                                    type="file"
+                                    id={`video-upload-${selectedIndex}`}
+                                    className="hidden"
+                                    accept="video/mp4,video/x-m4v,video/*"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      setIsUploadingMaterial(true);
+                                      try {
+                                        const res = await courseService.uploadModuleMaterial(file);
+                                        if (res.success && res.data) {
+                                          updateModule(selectedIndex, { contenido: res.data.url });
+                                          toast.success('¡Video subido!');
+                                        }
+                                      } catch (err) {
+                                        toast.error('Error al subir video');
+                                      } finally {
+                                        setIsUploadingMaterial(false);
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-9 px-3"
+                                    onClick={() => document.getElementById(`video-upload-${selectedIndex}`)?.click()}
+                                    disabled={isSaving || isUploadingMaterial}
+                                  >
+                                    {isUploadingMaterial ? '...' : 'Subir MP4'}
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
                           ) : selectedModule.tipo === 'practica_presencial' ? (
                             <Textarea value={PRACTICA_PRESENCIAL_MESSAGE} disabled className="min-h-[90px]" />
                           ) : selectedModule.tipo === 'lectura' ? (
                             <div className="space-y-4">
                               <div className="text-xs text-gray-600">
-                                Sube un archivo (PDF, Excel, PPT, Imagen) para que los alumnos lo descarguen.
+                                Sube archivos (PDF, Video MP4, Excel, PPT, Imagen) para el alumno.
                               </div>
 
                               {/* Estado de carga */}
                               {isUploadingMaterial && (
                                 <div className="flex items-center gap-2 text-sm text-blue-600 animate-pulse font-bold bg-blue-50 p-3 rounded-lg border border-blue-200">
                                   <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                                  SUBIENDO ARCHIVO... Por favor espera.
+                                  SUBIENDO... Por favor espera.
                                 </div>
                               )}
 
@@ -996,7 +1047,7 @@ export default function AdminEditorCurso() {
                                       <p className="text-sm font-black truncate uppercase tracking-tight">
                                         {current.archivoNombre || 'Archivo vinculado'}
                                       </p>
-                                      <p className="text-[11px] font-medium text-green-700">✅ Archivo listo en la nube</p>
+                                      <p className="text-[11px] font-medium text-green-700">✅ Listo en la nube</p>
                                     </div>
                                     <Button 
                                       variant="destructive" 
@@ -1016,8 +1067,9 @@ export default function AdminEditorCurso() {
                                   <div className="relative">
                                     <Input
                                       type="file"
+                                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.mp4,.webm,image/*"
                                       disabled={isSaving || isUploadingMaterial}
-                                      className="cursor-pointer file:bg-blue-50 file:text-blue-700 file:border-0 file:rounded-md file:px-4 file:py-1 file:mr-4 file:font-bold hover:file:bg-blue-100 transition-all"
+                                      className="cursor-pointer file:bg-blue-50 file:text-blue-700 file:border-0 file:rounded-md file:px-4 file:py-1 file:mr-4 file:font-bold hover:file:bg-blue-100 transition-all text-xs"
                                       onChange={async (e) => {
                                         const file = (e.target as HTMLInputElement).files?.[0];
                                         if (!file) return;
@@ -1039,13 +1091,10 @@ export default function AdminEditorCurso() {
                                                 archivoNombre: file.name,
                                               } satisfies LecturaContenido,
                                             });
-                                            toast.success('¡Archivo subido con éxito!');
-                                          } else {
-                                            toast.error(res.error || 'Error al subir');
+                                            toast.success('¡Archivo subido!');
                                           }
                                         } catch (err) {
-                                          console.error(err);
-                                          toast.error('Error crítico al subir');
+                                          toast.error('Error al subir');
                                         } finally {
                                           setIsUploadingMaterial(false);
                                           e.target.value = '';

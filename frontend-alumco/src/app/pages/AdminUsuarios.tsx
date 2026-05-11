@@ -182,6 +182,8 @@ export default function AdminUsuarios() {
     setIsHelpOpen(false);
   };
 
+  const [isImporting, setIsImporting] = useState(false);
+
   const triggerFileUpload = () => {
     setIsHelpOpen(false);
     const input = document.createElement('input');
@@ -190,9 +192,12 @@ export default function AdminUsuarios() {
     input.onchange = (e: any) => {
       const file = e.target.files[0];
       if (!file) return;
+
+      setIsImporting(true);
       const formData = new FormData();
       formData.append('file', file);
       const token = localStorage.getItem('token') || '';
+
       fetch(buildApiUrl('/api/reportes/usuarios/importar'), {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
@@ -200,49 +205,52 @@ export default function AdminUsuarios() {
       })
       .then(res => res.json())
       .then(data => {
+        setIsImporting(false);
+        
         const insertados = data.insertados ?? 0;
         const duplicados = data.duplicados ?? 0;
         const invalidos: string[] = data.invalidos ?? [];
         const errores: string[] = data.errores ?? [];
 
-        // Toast principal
-        const tituloToast = insertados > 0
-          ? `${insertados} usuario${insertados !== 1 ? 's' : ''} creado${insertados !== 1 ? 's' : ''} correctamente`
-          : 'Importación completada — ningún usuario nuevo';
-
-        const detalles: string[] = [];
-        if (duplicados > 0)
-          detalles.push(`${duplicados} ya existían (omitidos)`);
-        if (invalidos.length > 0)
-          detalles.push(`${invalidos.length} con RUT o email inválido`);
-        if (errores.length > 0)
-          detalles.push(`${errores.length} error${errores.length !== 1 ? 'es' : ''} internos`);
-
+        // Mensaje de resumen
         if (insertados > 0) {
-          toast.success(tituloToast, {
-            description: detalles.length > 0 ? detalles.join(' · ') : undefined,
-            duration: 6000,
+          toast.success(`¡Éxito! Se crearon ${insertados} usuarios nuevos.`, {
+            description: `Se procesaron correctamente los datos del archivo.`,
+            duration: 5000,
           });
-        } else {
-          toast.warning(tituloToast, {
-            description: detalles.length > 0 ? detalles.join(' · ') : undefined,
+        }
+
+        // Alertas de advertencia/error
+        if (duplicados > 0 || invalidos.length > 0 || errores.length > 0) {
+          const warnDetails = [];
+          if (duplicados > 0) warnDetails.push(`${duplicados} ya existían`);
+          if (invalidos.length > 0) warnDetails.push(`${invalidos.length} con datos inválidos`);
+          if (errores.length > 0) warnDetails.push(`${errores.length} fallaron por error de red`);
+          
+          toast.warning("Importación parcial", {
+            description: warnDetails.join(' · '),
             duration: 8000,
           });
         }
 
-        // Listar inválidos si son pocos
-        if (invalidos.length > 0 && invalidos.length <= 8) {
-          toast.error(`Filas inválidas:\n${invalidos.join('\n')}`, { duration: 12000 });
+        if (insertados === 0 && duplicados === 0 && invalidos.length === 0 && errores.length === 0) {
+          toast.info("El archivo parece estar vacío o no tiene el formato correcto.");
         }
 
-        // Recargar lista de usuarios
+        // Recargar lista de usuarios inmediatamente
+        setState({ status: 'loading' });
         userService.getUsers().then(res => {
           if (res.success && res.data) {
             setState({ status: 'ready', users: res.data.map(normalizeUser) });
+          } else {
+            setState({ status: 'error', message: 'Error al refrescar la lista.' });
           }
         });
       })
-      .catch(() => toast.error('Error al importar el archivo'));
+      .catch(() => {
+        setIsImporting(false);
+        toast.error('Error crítico al conectar con el servidor para la importación');
+      });
     };
     input.click();
   };
@@ -422,6 +430,17 @@ export default function AdminUsuarios() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <header className="bg-white shadow-sm border-b">
+        {isImporting && (
+          <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-cyan-200 border-t-cyan-600 rounded-full animate-spin"></div>
+              <div className="mt-4 text-lg font-bold text-cyan-900 animate-pulse text-center">
+                PROCESANDO EXCEL...
+              </div>
+              <p className="text-sm text-gray-600 mt-1 text-center">Esto puede tardar unos segundos dependiendo del tamaño</p>
+            </div>
+          </div>
+        )}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">

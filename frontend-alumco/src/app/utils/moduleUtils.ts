@@ -40,3 +40,30 @@ export function coerceContenidoForTipo(nextTipo: ModuloTipo, prev: ModuloConteni
   if (isPlainObject(prev) && typeof prev.instrucciones === 'string') return prev.instrucciones;
   return '';
 }
+
+/**
+ * Transforma un link de YouTube normal en un link de "Embed" compatible con iframes.
+ * También usa el dominio youtube-nocookie para mejor compatibilidad.
+ */
+export function transformYoutubeUrl(url: string): string {
+  if (!url) return url;
+  const trimmed = url.trim();
+  
+  // 1. Si ya es un embed, solo asegurar que use youtube-nocookie
+  if (trimmed.includes('youtube.com/embed/') || trimmed.includes('youtube-nocookie.com/embed/')) {
+    const idMatch = trimmed.match(/\/embed\/([^?#&]+)/);
+    if (idMatch) return `https://www.youtube-nocookie.com/embed/${idMatch[1]}`;
+    return trimmed;
+  }
+
+  // 2. Regex robusta para capturar el ID de 11 caracteres
+  // Soporta: watch?v=ID, v=ID, youtu.be/ID, youtube.com/v/ID, youtube.com/vi/ID, etc.
+  const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const match = trimmed.match(regExp);
+
+  if (match && match[1]) {
+    return `https://www.youtube-nocookie.com/embed/${match[1]}`;
+  }
+
+  return trimmed;
+}

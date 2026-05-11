@@ -1,5 +1,6 @@
 // src/app/hooks/useQuizResponder.ts
 import { useState, useEffect, useCallback } from 'react';
+import { buildApiUrl } from '../config/api.config';
 
 export interface QuizModulo {
   modulo_id: string;
@@ -80,7 +81,7 @@ export const useQuizResponder = (modulo_id: string) => {
 
       try {
         const token = getToken();
-        const response = await fetch(`/api/quiz/modulos/${modulo_id}`, {
+        const response = await fetch(buildApiUrl(`/api/quiz/modulos/${modulo_id}`), {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -106,7 +107,7 @@ export const useQuizResponder = (modulo_id: string) => {
         setQuiz(quizData);
 
         // Cargar historial de intentos
-        const intentosResponse = await fetch(`/api/quiz/modulos/${modulo_id}/intentos`, {
+        const intentosResponse = await fetch(buildApiUrl(`/api/quiz/modulos/${modulo_id}/intentos`), {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -140,7 +141,7 @@ export const useQuizResponder = (modulo_id: string) => {
 
       try {
         const token = getToken();
-        const response = await fetch(`/api/quiz/modulos/${modulo_id}/respuestas`, {
+        const response = await fetch(buildApiUrl(`/api/quiz/modulos/${modulo_id}/respuestas`), {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -187,7 +188,7 @@ export const useQuizResponder = (modulo_id: string) => {
     const cargarQuiz = async () => {
       try {
         const token = getToken();
-        const response = await fetch(`/api/quiz/modulos/${modulo_id}`, {
+        const response = await fetch(buildApiUrl(`/api/quiz/modulos/${modulo_id}`), {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
