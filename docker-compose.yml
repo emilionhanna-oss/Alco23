@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: alumco-db
+    environment:
+      POSTGRES_DB: alumco
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./backend-alumco/alumco_schema_BDD_postgre.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+  backend:
+    build:
+      context: ./backend-alumco
+      dockerfile: Dockerfile
+    container_name: alumco-backend
+    depends_on:
+      - db
+    environment:
+      PORT: 3000
+      CORS_ORIGIN: http://localhost:5173
+      JWT_SECRET: change_me_in_local_env
+      DATABASE_URL: postgres://postgres:postgres@db:5432/alumco
+      DB_SSL: 'false'
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend-alumco:/app
+      - backend_node_modules:/app/node_modules
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./frontend-alumco
+      dockerfile: Dockerfile
+    container_name: alumco-frontend
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:3000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend-alumco:/app
+      - frontend_node_modules:/app/node_modules
+    command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  db_data:
+  backend_node_modules:
+  frontend_node_modules:

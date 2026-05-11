@@ -1,0 +1,78 @@
+{
+  "usuarios": [
+    {
+      "id": "1",
+      "email": "admin@gmail.com",
+      "password": "admin123",
+      "nombreCompleto": "Administrador Principal",
+      "nombre": "Admin",
+      "genero": "otro",
+      "rut": "11.111.111-1",
+      "sede": "Hualpen (Region del Biobio)",
+      "cargo": "Direccion y Administracion",
+      "estado": "activo",
+      "rol": ["admin", "usuario"]
+    },
+    {
+      "id": "2",
+      "email": "profesor@gmail.com",
+      "password": "profesor123",
+      "nombreCompleto": "Profesor de Capacitaciones",
+      "nombre": "Profesor",
+      "genero": "otro",
+      "rut": "22.222.222-2",
+      "sede": "Hualpen (Region del Biobio)",
+      "cargo": "Enfermeria",
+      "estado": "activo",
+      "rol": ["profesor", "usuario"]
+    },
+    {
+      "id": "3",
+      "email": "colaborador@gmail.com",
+      "password": "colaborador123",
+      "nombreCompleto": "Personal de Cuidado",
+      "nombre": "Colaborador",
+      "genero": "otro",
+      "rut": "33.333.333-3",
+      "sede": "Hualpen (Region del Biobio)",
+      "cargo": "Cuidados Directos",
+      "estado": "activo",
+      "rol": ["usuario"]
+    }
+  ],
+  "cursos": [
+    {
+      "id": "1",
+      "titulo": "Bienvenida a la Plataforma ALUMCO",
+      "descripcion": "Introducción a la plataforma de capacitaciones.",
+      "imagen": "/static/course-images/curso-1-bienvenida.svg",
+      "instructorId": "1",
+      "alumnosInscritos": ["1", "2", "3"],
+      "modulos": [
+        { "tituloModulo": "¿Qué es ALUMCO?", "tipo": "video", "contenido": "https://www.youtube.com/embed/dQw4w9WgXcQ" }
+      ]
+    },
+    {
+      "id": "2",
+      "titulo": "Protocolos de Seguridad",
+      "descripcion": "Protocolos esenciales para cuidado.",
+      "imagen": "/static/course-images/curso-2-seguridad.svg",
+      "instructorId": "1",
+      "alumnosInscritos": ["2", "3"],
+      "modulos": []
+    },
+    {
+      "id": "3",
+      "titulo": "Manejo de Pacientes con Movilidad Limitada",
+      "descripcion": "Curso práctico para el cuidado de pacientes con movilidad reducida.",
+      "imagen": "/static/course-images/curso-3-movilidad.svg",
+      "instructorId": "2",
+      "alumnosInscritos": ["1", "3"],
+      "modulos": [
+        { "tituloModulo": "Técnicas de Transferencia Segura", "tipo": "video", "contenido": "https://www.youtube.com/embed/2fcWRuIrhwg" },
+        { "tituloModulo": "Evaluación del Paciente", "tipo": "lectura", "contenido": { "instrucciones": "Aprende a evaluar la movilidad y capacidad del paciente antes de cualquier procedimiento." } },
+        { "tituloModulo": "Práctica Presencial", "tipo": "practica_presencial", "contenido": "" }
+      ]
+    }
+  ]
+}
