@@ -44,12 +44,11 @@ Thumbs.db
 **/*.sqlite
 **/*.sqlite3
 **/postgres_data/
+**/public/uploads/
 
 # --- Docker ---
 .docker/
-docker-compose.yml
 docker-compose.override.yml
-**/Dockerfile
 
 # --- Local Scripts ---
 iniciar_proyecto.bat
