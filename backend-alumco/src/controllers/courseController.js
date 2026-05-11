@@ -2,6 +2,27 @@
 const db = require('../db');
 const xlsx = require('xlsx');
 
+/** Valida RUT chileno con dígito verificador. Acepta "12.345.678-9" o "12345678-9" */
+function validarRutChileno(rut) {
+  if (!rut || typeof rut !== 'string') return false;
+  const cleaned = rut.replace(/\./g, '').replace(/\s/g, '').toUpperCase();
+  if (!/^\d{7,8}-[\dK]$/.test(cleaned)) return false;
+  const [body, dv] = cleaned.split('-');
+  let suma = 0, mul = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    suma += parseInt(body[i]) * mul;
+    mul = mul >= 7 ? 2 : mul + 1;
+  }
+  const dvEsperado = 11 - (suma % 11);
+  const dvChar = dvEsperado === 11 ? '0' : dvEsperado === 10 ? 'K' : String(dvEsperado);
+  return dv === dvChar;
+}
+
+/** Valida formato de email */
+function validarEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 function normalizeRoles(raw) {
   if (Array.isArray(raw)) return raw.map(String);
   if (raw === undefined || raw === null) return [];
@@ -494,38 +515,77 @@ const inscripcionMasiva = async (req, res) => {
       return res.status(400).json({ success: false, error: 'No se subió ningún archivo' });
     }
 
-    const workbook = xlsx.read(req.file.path);
+    // FIX: multer usa memoryStorage (buffer), no file.path
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     const data = xlsx.utils.sheet_to_json(worksheet);
 
     let inscritos = 0;
-    for (const row of data) {
-      // Intentar obtener identificador por columnas comunes
-      const ident = (row['Email'] || row['email'] || row['Correo'] || row['RUT'] || row['rut'] || '').toString().trim();
-      if (!ident) continue;
+    let yaInscritos = 0;
+    const noEncontrados = [];
+    const invalidos = [];
 
-      // Buscar usuario
-      const userRes = await db.query('SELECT id FROM usuarios WHERE email = $1 OR rut = $2', [ident, ident]);
-      if (userRes.rows.length > 0) {
-        const userId = userRes.rows[0].id;
-        // Inscribir
-        const insRes = await db.query(
-          'INSERT INTO inscripciones (usuario_id, curso_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-          [userId, cursoId]
-        );
-        if (insRes.rowCount > 0) {
-          inscritos++;
-        }
+    for (const row of data) {
+      const email = (row['Email'] || row['email'] || row['Correo'] || '').toString().trim().toLowerCase();
+      const rut   = (row['RUT']   || row['rut']   || '').toString().trim();
+
+      if (!email && !rut) continue;
+
+      // Validar formatos antes de consultar la BD
+      if (email && !validarEmail(email)) {
+        invalidos.push(`Email inválido: "${email}"`);
+        continue;
       }
+      if (rut && !validarRutChileno(rut)) {
+        invalidos.push(`RUT inválido: "${rut}"`);
+        continue;
+      }
+
+      // Buscar usuario por email o por RUT (columnas independientes)
+      const conditions = [];
+      const params = [];
+      if (email) { conditions.push(`email = $${params.length + 1}`); params.push(email); }
+      if (rut)   { conditions.push(`rut = $${params.length + 1}`);   params.push(rut);   }
+
+      const userRes = await db.query(
+        `SELECT id FROM usuarios WHERE ${conditions.join(' OR ')}`,
+        params
+      );
+
+      if (userRes.rows.length === 0) {
+        noEncontrados.push(email || rut);
+        continue;
+      }
+
+      const userId = userRes.rows[0].id;
+
+      // Verificar si ya está inscrito
+      const yaInscrito = await db.query(
+        'SELECT 1 FROM inscripciones WHERE usuario_id = $1 AND curso_id = $2',
+        [userId, cursoId]
+      );
+      if (yaInscrito.rows.length > 0) {
+        yaInscritos++;
+        continue;
+      }
+
+      // Inscribir
+      const insRes = await db.query(
+        'INSERT INTO inscripciones (usuario_id, curso_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [userId, cursoId]
+      );
+      if (insRes.rowCount > 0) inscritos++;
     }
 
-    // Obtener lista actualizada de IDs para el frontend
     const alumnos = await getAlumnosByCurso(cursoId);
-    
-    return res.json({ 
-      success: true, 
-      inscritos, 
+
+    return res.json({
+      success: true,
+      inscritos,
+      yaInscritos,
+      noEncontrados,
+      invalidos,
       alumnosActualizados: alumnos
     });
   } catch (error) {

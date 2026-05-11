@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Badge } from '../components/ui/badge';
 import { ChevronLeft, ChartBar, LogOut } from 'lucide-react';
 import { courseService, userService } from '../services/apiService';
+import { toast } from 'sonner';
 import type { Course, User } from '../types';
-import { BACKEND_URL } from '../config/api.config';
+import { BACKEND_URL, buildApiUrl } from '../config/api.config';
 
 const LOGO_SRC = `${BACKEND_URL}/static/alumco-logo.png`;
 
@@ -181,10 +182,16 @@ export default function AdminDashboardMetrics() {
               </Button>
               <Button onClick={() => {
                 const token = localStorage.getItem('token') || '';
-                fetch(buildApiUrl('/api/reportes/dashboard/exportar'), {
+                const promise = fetch(buildApiUrl('/api/reportes/dashboard/exportar'), {
                   headers: { 'Authorization': `Bearer ${token}` }
                 })
-                .then(res => res.blob())
+                .then(async res => {
+                  if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error || 'Error al generar el reporte');
+                  }
+                  return res.blob();
+                })
                 .then(blob => {
                   const url = window.URL.createObjectURL(blob);
                   const a = document.createElement('a');
@@ -193,6 +200,13 @@ export default function AdminDashboardMetrics() {
                   document.body.appendChild(a);
                   a.click();
                   a.remove();
+                  window.URL.revokeObjectURL(url);
+                });
+
+                toast.promise(promise, {
+                  loading: 'Generando reporte Excel...',
+                  success: 'Reporte descargado con éxito',
+                  error: (err) => err.message || 'Error al exportar reporte'
                 });
               }}>
                 Exportar Reporte

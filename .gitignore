@@ -47,7 +47,12 @@ Thumbs.db
 
 # --- Docker ---
 .docker/
+docker-compose.yml
 docker-compose.override.yml
+**/Dockerfile
+
+# --- Local Scripts ---
+iniciar_proyecto.bat
 
 # --- Misc ---
 *.bak

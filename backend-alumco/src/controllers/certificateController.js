@@ -71,13 +71,37 @@ const descargaMasiva = async (req, res) => {
       });
     }
 
-    // 2. Configurar Archiver para el ZIP
+    // 2. Generar todos los certificados en memoria primero
+    // Esto evita enviar un ZIP vacío si fallan las firmas
+    const pdfs = [];
+    let erroresFirma = 0;
+
+    for (const row of completedResult.rows) {
+      try {
+        const pdfBuffer = await certificateService.generateCertificate(row.curso_id, row.usuario_id);
+        const safeName = row.nombre_completo.replace(/[^a-z0-9]/gi, '_');
+        const safeCourse = row.curso_titulo.replace(/[^a-z0-9]/gi, '_');
+        pdfs.push({ buffer: pdfBuffer, name: `${safeName}_${safeCourse}.pdf` });
+      } catch (err) {
+        if (err.message.includes('firma')) {
+          erroresFirma++;
+        }
+        console.error(`Error generando certificado para u:${row.usuario_id} c:${row.curso_id}:`, err.message);
+      }
+    }
+
+    if (pdfs.length === 0) {
+      return res.status(400).json({ 
+        error: erroresFirma > 0 
+          ? 'No se pudieron generar los certificados. Al parecer el instructor de estos cursos no tiene firma configurada.' 
+          : 'No se logró generar ningún certificado válido.'
+      });
+    }
+
+    // 3. Configurar Archiver y enviar el ZIP
     let archive;
     try {
-      // Usar la clase ZipArchive (formato detectado en el entorno)
-      archive = new archiver.ZipArchive({
-        zlib: { level: 5 }
-      });
+      archive = new archiver.ZipArchive({ zlib: { level: 5 } });
     } catch (e) {
       console.error('Error al inicializar archiver:', e);
       return res.status(500).json({ error: 'Error de configuración del ZIP en el servidor' });
@@ -88,24 +112,12 @@ const descargaMasiva = async (req, res) => {
 
     archive.pipe(res);
 
-    // 3. Generar y añadir cada certificado al ZIP
-    for (const row of completedResult.rows) {
-      try {
-        const pdfBuffer = await certificateService.generateCertificate(row.curso_id, row.usuario_id);
-        
-        // Sanitizar nombre de archivo: Nombre_Alumno - Titulo_Curso.pdf
-        const safeName = row.nombre_completo.replace(/[^a-z0-9]/gi, '_');
-        const safeCourse = row.curso_titulo.replace(/[^a-z0-9]/gi, '_');
-        const fileName = `${safeName}_${safeCourse}.pdf`;
-
-        archive.append(pdfBuffer, { name: fileName });
-      } catch (err) {
-        console.error(`Error generando certificado para u:${row.usuario_id} c:${row.curso_id}:`, err);
-        // Continuamos con el resto si uno falla
-      }
+    for (const pdf of pdfs) {
+      archive.append(pdf.buffer, { name: pdf.name });
     }
 
     archive.finalize();
+
 
   } catch (error) {
     console.error('Error en descarga masiva:', error);

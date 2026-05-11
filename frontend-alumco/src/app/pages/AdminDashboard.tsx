@@ -15,7 +15,8 @@ import {
   UserCog,
   Building2,
   FileArchive,
-  Download
+  Download,
+  AlertCircle
 } from 'lucide-react';
 import { BACKEND_URL, buildApiUrl } from '../config/api.config';
 import { userService } from '../services/apiService';
@@ -43,9 +44,24 @@ export default function AdminDashboard() {
   const [courses, setCourses] = useState<any[]>([]);
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [hasProfileSignature, setHasProfileSignature] = useState(true);
 
   useEffect(() => {
     let mounted = true;
+
+    const loadSignature = async () => {
+      try {
+        const response = await userService.getProfile();
+        if (mounted && response.success && response.data) {
+          const firmaTexto = String(response.data.firmaTexto || '').trim();
+          const firmaImagen = String(response.data.firmaImagenDataUrl || '').trim();
+          const hasImage = /^data:image\/(png|jpeg|jpg);base64,/i.test(firmaImagen);
+          setHasProfileSignature(Boolean(firmaTexto) || hasImage);
+        }
+      } catch (err) {
+        console.error('Error checking signature:', err);
+      }
+    };
 
     const loadPendingUsers = async () => {
       try {
@@ -77,6 +93,7 @@ export default function AdminDashboard() {
 
     loadPendingUsers();
     loadCourses();
+    loadSignature();
 
     return () => {
       mounted = false;
@@ -184,6 +201,29 @@ export default function AdminDashboard() {
             </p>
           </div>
         </div>
+
+        {/* Signature Alert Banner */}
+        {!hasProfileSignature && (
+          <div className="mb-6 bg-gradient-to-r from-amber-500 to-orange-600 rounded-lg p-4 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 border border-amber-400 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex items-center gap-3 text-white">
+              <div className="p-2 bg-white/20 rounded-full">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-bold text-sm">Falta tu firma digital</p>
+                <p className="text-xs text-amber-50">Tus alumnos no podrán generar sus certificados hasta que configures tu firma en el perfil.</p>
+              </div>
+            </div>
+            <Button 
+              size="sm" 
+              variant="secondary" 
+              onClick={() => navigate('/perfil')}
+              className="w-full sm:w-auto font-bold shadow-sm whitespace-nowrap bg-white text-orange-600 hover:bg-amber-50"
+            >
+              Configurar Firma Ahora
+            </Button>
+          </div>
+        )}
 
         {/* Admin Cards (3x2 en escritorio) */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

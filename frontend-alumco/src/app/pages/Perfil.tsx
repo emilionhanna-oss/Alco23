@@ -8,9 +8,20 @@ import { Label } from '../components/ui/label';
 import { Separator } from '../components/ui/separator';
 import { courseService, userService } from '../services/apiService';
 import type { Course, User } from '../types';
-import { ArrowLeft, Award, Download, Image as ImageIcon, PenLine, User as UserIcon } from 'lucide-react';
+import { ArrowLeft, Award, Download, Image as ImageIcon, PenLine, User as UserIcon, Trash2 } from 'lucide-react';
 import { BACKEND_URL, buildApiUrl } from '../config/api.config';
 import { formatRutForDisplay, normalizeRutForStorage } from '../utils/rut';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '../components/ui/alert-dialog';
 
 const LOGO_SRC = `${BACKEND_URL}/static/alumco-logo.png`;
 
@@ -40,6 +51,7 @@ export default function Perfil() {
   const [nombreCompleto, setNombreCompleto] = useState('');
   const [rut, setRut] = useState('');
   const [cargo, setCargo] = useState('');
+  const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
 
   const [firmaTexto, setFirmaTexto] = useState('');
   const [firmaImagenDataUrl, setFirmaImagenDataUrl] = useState<string | undefined>(undefined);
@@ -87,6 +99,10 @@ export default function Perfil() {
 
     return Boolean(text) || Boolean(image);
   }, [firmaImagenSafe, firmaTexto, profile?.firmaImagenDataUrl, profile?.firmaTexto]);
+
+  const isSignatureSaved = useMemo(() => {
+    return Boolean(profile?.firmaTexto) || Boolean(profile?.firmaImagenDataUrl);
+  }, [profile?.firmaTexto, profile?.firmaImagenDataUrl]);
 
   useEffect(() => {
     let mounted = true;
@@ -171,6 +187,7 @@ export default function Perfil() {
     if (resp.success && resp.data) {
       setProfile(resp.data);
       setSaveStatus({ type: 'ok', message: 'Perfil actualizado.' });
+      setIsEditingPersonalInfo(false);
       return;
     }
 
@@ -340,7 +357,7 @@ export default function Perfil() {
                     value={nombreCompleto}
                     onChange={(e) => setNombreCompleto(e.target.value)}
                     placeholder="Tu nombre"
-                    disabled={isLoading}
+                    disabled={isLoading || !isEditingPersonalInfo}
                   />
                 </div>
 
@@ -361,7 +378,7 @@ export default function Perfil() {
                     value={rut}
                     onChange={(e) => setRut(formatRutForDisplay(e.target.value))}
                     placeholder="Ej: 12.345.678-9"
-                    disabled={isLoading}
+                    disabled={isLoading || !isEditingPersonalInfo}
                   />
                 </div>
 
@@ -377,16 +394,37 @@ export default function Perfil() {
                     value={cargo}
                     onChange={(e) => setCargo(e.target.value)}
                     placeholder="Ej: Cuidador/a"
-                    disabled={isLoading || !isAdminUser}
+                    disabled={isLoading || !isEditingPersonalInfo || !isAdminUser}
                   />
-                  {!isAdminUser ? <div className="text-xs text-gray-500">Solo el administrador puede modificar el cargo.</div> : null}
+                  {!isAdminUser && isEditingPersonalInfo ? <div className="text-xs text-gray-500">Solo el administrador puede modificar el cargo.</div> : null}
                 </div>
               </div>
 
-              <div className="flex justify-end">
-                <Button onClick={handleSavePersonalInfo} disabled={isLoading}>
-                  Guardar cambios
-                </Button>
+              <div className="flex justify-end gap-2">
+                {!isEditingPersonalInfo ? (
+                  <Button type="button" onClick={() => setIsEditingPersonalInfo(true)} disabled={isLoading}>
+                    Editar datos
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setNombreCompleto(profile?.nombreCompleto || profile?.nombre || profile?.name || '');
+                        setRut(formatRutForDisplay(profile?.rut || ''));
+                        setCargo(profile?.cargo || '');
+                        setIsEditingPersonalInfo(false);
+                      }}
+                      disabled={isLoading}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleSavePersonalInfo} disabled={isLoading}>
+                      Guardar cambios
+                    </Button>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -405,7 +443,9 @@ export default function Perfil() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg border bg-white p-4">
-                <div className="text-xs font-medium text-gray-700 mb-2">Vista previa</div>
+                <div className="text-xs font-medium text-gray-700 mb-2">
+                  {isSignatureSaved ? 'Firma actual' : 'Vista previa'}
+                </div>
                 <div className="min-h-[84px] flex items-center justify-center">
                   {firmaImagenSafe ? (
                     <img
@@ -421,61 +461,87 @@ export default function Perfil() {
                 </div>
               </div>
 
-              <Separator />
+              {!isSignatureSaved ? (
+                <>
+                  <Separator />
 
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4" /> Subir imagen (PNG/JPG)
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4" /> Subir imagen (PNG/JPG)
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="hidden"
+                      onChange={handleSignatureFileSelected}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" onClick={handlePickSignatureImage} disabled={isLoading}>
+                        Elegir archivo
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setFirmaImagenDataUrl(undefined);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        disabled={isLoading || !firmaImagenDataUrl}
+                      >
+                        Quitar imagen
+                      </Button>
+                    </div>
+                    <div className="text-xs text-gray-500">Recomendado: imagen pequeña (máx. 250KB).</div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-gray-900">O escribe tu nombre</div>
+                    <Input
+                      value={firmaTexto}
+                      onChange={(e) => {
+                        setFirmaTexto(e.target.value);
+                        if (e.target.value.trim()) setFirmaImagenDataUrl(undefined);
+                      }}
+                      placeholder="Ej: Juan Pérez"
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button type="button" onClick={handleSaveSignature} disabled={isLoading || (!firmaImagenDataUrl && !firmaTexto.trim())}>
+                      Guardar firma
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-end pt-2">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button type="button" variant="destructive" disabled={isLoading} className="flex items-center gap-2">
+                        <Trash2 className="h-4 w-4" />
+                        Eliminar firma
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar tu firma?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Si eliminas tu firma, ya no podrás descargar certificados hasta que subas una nueva. Esta acción no se puede deshacer.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleClearSignature} className="bg-red-600 hover:bg-red-700">
+                          Sí, eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  className="hidden"
-                  onChange={handleSignatureFileSelected}
-                />
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" onClick={handlePickSignatureImage} disabled={isLoading}>
-                    Elegir archivo
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setFirmaImagenDataUrl(undefined);
-                      if (fileInputRef.current) fileInputRef.current.value = '';
-                    }}
-                    disabled={isLoading || !firmaImagenDataUrl}
-                  >
-                    Quitar imagen
-                  </Button>
-                </div>
-                <div className="text-xs text-gray-500">Recomendado: imagen pequeña (máx. 250KB).</div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-gray-900">O escribe tu nombre</div>
-                <Input
-                  value={firmaTexto}
-                  onChange={(e) => {
-                    setFirmaTexto(e.target.value);
-                    if (e.target.value.trim()) setFirmaImagenDataUrl(undefined);
-                  }}
-                  placeholder="Ej: Juan Pérez"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button type="button" variant="outline" onClick={handleClearSignature} disabled={isLoading}>
-                  Eliminar firma
-                </Button>
-                <Button type="button" onClick={handleSaveSignature} disabled={isLoading}>
-                  Guardar firma
-                </Button>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>

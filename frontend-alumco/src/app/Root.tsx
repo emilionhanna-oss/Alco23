@@ -1,6 +1,7 @@
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Toaster } from './components/ui/sonner';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -82,6 +83,7 @@ export default function Root() {
 
   return (
     <AuthProvider>
+      <Toaster richColors />
       <RootContent />
     </AuthProvider>
   );

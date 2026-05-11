@@ -200,14 +200,49 @@ export default function AdminUsuarios() {
       })
       .then(res => res.json())
       .then(data => {
-        toast.success(`Importación completada:\nInsertados: ${data.insertados}\nErrores: ${data.errores?.length || 0}`);
+        const insertados = data.insertados ?? 0;
+        const duplicados = data.duplicados ?? 0;
+        const invalidos: string[] = data.invalidos ?? [];
+        const errores: string[] = data.errores ?? [];
+
+        // Toast principal
+        const tituloToast = insertados > 0
+          ? `${insertados} usuario${insertados !== 1 ? 's' : ''} creado${insertados !== 1 ? 's' : ''} correctamente`
+          : 'Importación completada — ningún usuario nuevo';
+
+        const detalles: string[] = [];
+        if (duplicados > 0)
+          detalles.push(`${duplicados} ya existían (omitidos)`);
+        if (invalidos.length > 0)
+          detalles.push(`${invalidos.length} con RUT o email inválido`);
+        if (errores.length > 0)
+          detalles.push(`${errores.length} error${errores.length !== 1 ? 'es' : ''} internos`);
+
+        if (insertados > 0) {
+          toast.success(tituloToast, {
+            description: detalles.length > 0 ? detalles.join(' · ') : undefined,
+            duration: 6000,
+          });
+        } else {
+          toast.warning(tituloToast, {
+            description: detalles.length > 0 ? detalles.join(' · ') : undefined,
+            duration: 8000,
+          });
+        }
+
+        // Listar inválidos si son pocos
+        if (invalidos.length > 0 && invalidos.length <= 8) {
+          toast.error(`Filas inválidas:\n${invalidos.join('\n')}`, { duration: 12000 });
+        }
+
+        // Recargar lista de usuarios
         userService.getUsers().then(res => {
           if (res.success && res.data) {
             setState({ status: 'ready', users: res.data.map(normalizeUser) });
           }
         });
       })
-      .catch(err => toast.error('Error al importar'));
+      .catch(() => toast.error('Error al importar el archivo'));
     };
     input.click();
   };

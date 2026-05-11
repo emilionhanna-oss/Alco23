@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { BookOpen, GraduationCap, LogOut, User, AlertCircle, FileCheck, Download, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import CourseCard from '../components/CourseCard';
-import { courseService } from '../services/apiService';
+import { courseService, userService } from '../services/apiService';
 import { BACKEND_URL } from '../config/api.config';
 import type { Course } from '../types';
 

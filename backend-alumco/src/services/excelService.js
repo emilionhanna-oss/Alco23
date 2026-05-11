@@ -10,6 +10,30 @@ function generarPassword(rawPassword) {
 }
 
 /**
+ * Valida RUT chileno (acepta con o sin puntos, con guion y dígito verificador)
+ * Ej. válidos: "12.345.678-9", "12345678-9"
+ */
+function validarRutChileno(rut) {
+  if (!rut || typeof rut !== 'string') return false;
+  const cleaned = rut.replace(/\./g, '').replace(/\s/g, '').toUpperCase();
+  if (!/^\d{7,8}-[\dK]$/.test(cleaned)) return false;
+  const [body, dv] = cleaned.split('-');
+  let suma = 0, mul = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    suma += parseInt(body[i]) * mul;
+    mul = mul >= 7 ? 2 : mul + 1;
+  }
+  const dvEsperado = 11 - (suma % 11);
+  const dvChar = dvEsperado === 11 ? '0' : dvEsperado === 10 ? 'K' : String(dvEsperado);
+  return dv === dvChar;
+}
+
+/** Valida formato de email */
+function validarEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+/**
  * Importar usuarios desde un archivo Excel
  * Columnas esperadas: Nombre Completo, Email, RUT, Genero, Cargo
  * Contraseña por defecto será su RUT
@@ -22,37 +46,49 @@ async function importarUsuarios(buffer) {
 
   const resultados = {
     insertados: 0,
-    errores: []
+    duplicados: 0,
+    invalidos: [],   // filas con formato de RUT o email inválido
+    errores: []      // errores inesperados de BD
   };
 
-  // Por defecto, sede Nula, o la primera que exista. 
-  // O podemos asignar una por defecto más adelante.
-
   for (const row of data) {
-    const nombre_completo = row['Nombre Completo'] || row['nombre_completo'] || row['Nombre'] || '';
+    const nombre_completo = (row['Nombre Completo'] || row['nombre_completo'] || row['Nombre'] || '').toString().trim();
     const email = (row['Email'] || row['email'] || row['Correo'] || '').toString().toLowerCase().trim();
     const rut = (row['RUT'] || row['rut'] || '').toString().trim();
-    const genero = row['Genero'] || row['genero'] || row['Género'] || 'Otro';
-    const cargo = row['Cargo'] || row['cargo'] || '';
+    const genero = (row['Genero'] || row['genero'] || row['Género'] || 'Otro').toString().trim();
+    const cargo = (row['Cargo'] || row['cargo'] || '').toString().trim();
 
+    // 1. Campos obligatorios
     if (!email || !rut || !nombre_completo) {
-      resultados.errores.push(`Fila inválida: Faltan datos requeridos (Email, RUT o Nombre). Fila: ${JSON.stringify(row)}`);
+      resultados.invalidos.push(`Fila incompleta (faltan Email, RUT o Nombre): ${nombre_completo || email || rut || '?'}`);
+      continue;
+    }
+
+    // 2. Validar formato de email
+    if (!validarEmail(email)) {
+      resultados.invalidos.push(`Email inválido: "${email}"`);
+      continue;
+    }
+
+    // 3. Validar formato de RUT chileno
+    if (!validarRutChileno(rut)) {
+      resultados.invalidos.push(`RUT inválido: "${rut}" (${nombre_completo})`);
       continue;
     }
 
     try {
-      // 1. Verificar si ya existe
+      // 4. Verificar duplicados
       const existe = await db.query('SELECT id FROM usuarios WHERE email = $1 OR rut = $2', [email, rut]);
       if (existe.rows.length > 0) {
-        resultados.errores.push(`El usuario con email ${email} o RUT ${rut} ya existe.`);
+        resultados.duplicados++;
         continue;
       }
 
-      // 2. Crear contraseña (RUT sin puntos ni guion, o completo)
+      // 5. Crear contraseña (RUT sin puntos ni guion)
       const rawPassword = rut.replace(/[^0-9kK]/g, '');
       const { hash, salt } = generarPassword(rawPassword || rut);
 
-      // 3. Insertar
+      // 6. Insertar usuario
       const newUser = await db.query(
         `INSERT INTO usuarios (email, password_hash, password_salt, nombre_completo, rut, genero, cargo, estado)
          VALUES ($1, $2, $3, $4, $5, $6, $7, 'activo') RETURNING id`,
@@ -62,7 +98,7 @@ async function importarUsuarios(buffer) {
 
       // Asignar rol usuario por defecto
       await db.query('INSERT INTO usuario_roles (usuario_id, rol) VALUES ($1, $2)', [usuario_id, 'usuario']);
-      
+
       resultados.insertados++;
     } catch (err) {
       resultados.errores.push(`Error insertando ${email}: ${err.message}`);

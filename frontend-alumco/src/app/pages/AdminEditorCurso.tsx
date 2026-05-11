@@ -7,6 +7,19 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
+import { buildApiUrl } from '../config/api.config';
+import { Checkbox } from '../components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '../components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -57,7 +70,10 @@ export default function AdminEditorCurso() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isRedirectingAfterSave, setIsRedirectingAfterSave] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isUploadingMaterial, setIsUploadingMaterial] = useState(false);
+  const [imageMode, setImageMode] = useState<'url' | 'upload'>('url');
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -96,6 +112,11 @@ export default function AdminEditorCurso() {
     const baseTitle = editTitle?.trim() ? editTitle.trim() : isNewCourse ? 'Nuevo curso' : 'Editar curso';
     document.title = `${roleLabel} · ${baseTitle} | Alumco`;
   }, [editTitle, isAdminUser, isNewCourse]);
+
+  // Resetear el error de imagen cada vez que cambia la URL
+  useEffect(() => {
+    setImageLoadError(false);
+  }, [editImage]);
 
   useEffect(() => {
     let isMounted = true;
@@ -603,8 +624,124 @@ export default function AdminEditorCurso() {
                     </div>
 
                     <div>
-                      <div className="text-xs font-medium text-gray-700 mb-1">Imagen (URL o ruta)</div>
-                      <Input value={editImage} onChange={(e) => setEditImage(e.target.value)} />
+                      <div className="text-xs font-medium text-gray-700 mb-1">Imagen de portada</div>
+
+                      {/* Tabs URL / Subir */}
+                      <div className="flex border rounded-md overflow-hidden mb-2">
+                        <button
+                          type="button"
+                          className={`flex-1 py-1 text-xs font-medium transition-colors ${
+                            imageMode === 'url'
+                              ? 'bg-gray-900 text-white'
+                              : 'bg-white text-gray-600 hover:bg-gray-50'
+                          }`}
+                          onClick={() => setImageMode('url')}
+                        >
+                          Pegar link
+                        </button>
+                        <button
+                          type="button"
+                          className={`flex-1 py-1 text-xs font-medium transition-colors ${
+                            imageMode === 'upload'
+                              ? 'bg-gray-900 text-white'
+                              : 'bg-white text-gray-600 hover:bg-gray-50'
+                          }`}
+                          onClick={() => setImageMode('upload')}
+                        >
+                          Subir imagen
+                        </button>
+                      </div>
+
+                      {imageMode === 'url' ? (
+                        <Input
+                          value={editImage}
+                          onChange={(e) => setEditImage(e.target.value)}
+                          placeholder="https://ejemplo.com/imagen.jpg"
+                          disabled={isSaving}
+                        />
+                      ) : (
+                        <div className="space-y-2">
+                          <label
+                            className={`flex flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed p-4 cursor-pointer text-xs text-gray-500 transition-colors ${
+                              isUploadingImage
+                                ? 'opacity-50 cursor-not-allowed border-gray-200'
+                                : 'hover:bg-gray-50 border-gray-300'
+                            }`}
+                          >
+                            {isUploadingImage ? (
+                              <span>Subiendo…</span>
+                            ) : (
+                              <>
+                                <span className="text-lg">🖼️</span>
+                                <span>Haz clic para seleccionar una imagen</span>
+                                <span className="text-gray-400">JPG, PNG, WEBP, SVG</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={isSaving || isUploadingImage}
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                setIsUploadingImage(true);
+                                try {
+                                  const formData = new FormData();
+                                  formData.append('file', file);
+                                  const token = localStorage.getItem('token') || '';
+                                  const res = await fetch(buildApiUrl('/api/cursos/upload-material'), {
+                                    method: 'POST',
+                                    headers: { Authorization: `Bearer ${token}` },
+                                    body: formData,
+                                  });
+                                  const data = await res.json();
+                                  if (res.ok && data.url) {
+                                    setEditImage(data.url);
+                                    toast.success('Imagen subida correctamente');
+                                  } else {
+                                    toast.error(data.error || 'No se pudo subir la imagen');
+                                  }
+                                } catch {
+                                  toast.error('Error al conectar con el servidor');
+                                } finally {
+                                  setIsUploadingImage(false);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                      )}
+
+                      {/* Vista previa */}
+                      {editImage ? (
+                        <div
+                          className={`mt-2 rounded-md overflow-hidden border h-24 flex items-center justify-center ${
+                            imageLoadError
+                              ? 'border-rose-300 bg-rose-50'
+                              : 'border-gray-200 bg-gray-50'
+                          }`}
+                        >
+                          {imageLoadError ? (
+                            <div className="flex flex-col items-center gap-1 text-xs text-rose-600 px-2 text-center">
+                              <span className="text-base">⚠️</span>
+                              <span>La URL no carga una imagen válida</span>
+                              <span className="text-rose-400 truncate max-w-full">{editImage}</span>
+                            </div>
+                          ) : (
+                            <img
+                              src={editImage}
+                              alt="Vista previa"
+                              className="h-full w-full object-cover"
+                              onError={() => setImageLoadError(true)}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-2 rounded-md border border-dashed bg-gray-50 h-24 flex items-center justify-center text-xs text-gray-400">
+                          Sin imagen
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

@@ -208,7 +208,7 @@ export default function AdminGestionCapacitaciones() {
 
       const formData = new FormData();
       formData.append('file', file);
-      
+
       setIsSaving(true);
       try {
         const token = localStorage.getItem('token') || '';
@@ -217,10 +217,40 @@ export default function AdminGestionCapacitaciones() {
           headers: { 'Authorization': `Bearer ${token}` },
           body: formData
         });
-        
+
         const data = await res.json();
         if (res.ok) {
-          toast.success(`Carga completada: ${data.inscritos} nuevos inscritos`);
+          // Mensaje principal
+          const tituloToast = data.inscritos > 0
+            ? `${data.inscritos} nuevo${data.inscritos !== 1 ? 's' : ''} inscrito${data.inscritos !== 1 ? 's' : ''}`
+            : 'Carga completada — sin nuevos inscritos';
+
+          // Detalle adicional
+          const detalles: string[] = [];
+          if (data.yaInscritos > 0)
+            detalles.push(`${data.yaInscritos} ya estaban inscritos`);
+          if (data.noEncontrados?.length > 0)
+            detalles.push(`${data.noEncontrados.length} no encontrado${data.noEncontrados.length !== 1 ? 's' : ''} en el sistema`);
+          if (data.invalidos?.length > 0)
+            detalles.push(`${data.invalidos.length} con formato inválido de RUT o Email`);
+
+          if (data.inscritos > 0 || detalles.length === 0) {
+            toast.success(tituloToast, {
+              description: detalles.length > 0 ? detalles.join(' · ') : undefined,
+              duration: 6000,
+            });
+          } else {
+            toast.warning(tituloToast, {
+              description: detalles.join(' · '),
+              duration: 8000,
+            });
+          }
+
+          // Mostrar lista de no encontrados si son pocos
+          if (data.noEncontrados?.length > 0 && data.noEncontrados.length <= 10) {
+            toast.info(`No encontrados: ${data.noEncontrados.join(', ')}`, { duration: 10000 });
+          }
+
           if (data.alumnosActualizados) {
             setSelectedUserIds(data.alumnosActualizados);
           }

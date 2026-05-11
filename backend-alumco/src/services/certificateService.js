@@ -50,6 +50,10 @@ async function generateCertificate(curso_id, usuario_id) {
 
   const data = userQuery.rows[0];
 
+  if (!data.instructor_firma_img || !data.instructor_firma_img.startsWith('data:image/')) {
+    throw new Error('El instructor del curso no tiene firma configurada');
+  }
+
   // 2. Crear o buscar hash de certificado
   let hash;
   const existingCert = await db.query(
@@ -137,19 +141,17 @@ async function generateCertificate(curso_id, usuario_id) {
       const bottomY = 430;
 
       // Firma del instructor (Izquierda)
-      if (data.instructor_firma_img && data.instructor_firma_img.startsWith('data:image/')) {
-        try {
-          const base64Data = data.instructor_firma_img.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
-          const imgBuffer = Buffer.from(base64Data, 'base64');
-          doc.image(imgBuffer, 150, bottomY, { width: 140, height: 60, fit: [140, 60] });
-        } catch (e) {
-          console.error('Error insertando firma en PDF:', e);
-        }
+      try {
+        const base64Data = data.instructor_firma_img.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
+        const imgBuffer = Buffer.from(base64Data, 'base64');
+        doc.image(imgBuffer, 150, bottomY, { width: 140, height: 60, fit: [140, 60] });
+      } catch (e) {
+        console.error('Error insertando firma en PDF:', e);
       }
       doc.font('Helvetica-Bold')
          .fontSize(11)
          .fillColor('#1a2840')
-         .text(data.instructor_firma_texto || 'Instructor Responsable', 120, bottomY + 65, { align: 'center', width: 200 });
+         .text(data.instructor_firma_texto || 'Instructor', 120, bottomY + 65, { align: 'center', width: 200 });
       doc.moveTo(120, bottomY + 62).lineTo(320, bottomY + 62).strokeColor('#1a2840').lineWidth(1).stroke();
 
       // Generar y estampar código QR (Derecha)

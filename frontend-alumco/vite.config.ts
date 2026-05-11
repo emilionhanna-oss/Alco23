@@ -25,6 +25,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path,
       },
+      '/static': {
+        target: 'http://alumco-backend:3000',
+        changeOrigin: true,
+        rewrite: (path) => path,
+      },
     },
   },
 })
